@@ -66,6 +66,7 @@ export class UDPServer {
       if (this.socket) {
         this.socket.close(() => {
           log('UDP Server stopped');
+          console.log('UDP Server stopped');
           resolve();
         });
       } else {

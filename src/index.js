@@ -240,14 +240,20 @@ if (isMainModule) {
 
   // Graceful shutdown
   process.on('SIGINT', async () => {
-    console.log('\nShutting down...');
+    console.log('\n========================================');
+    console.log('  Shutting down server...');
+    console.log('========================================');
     await server.stop();
+    console.log('Server stopped. Goodbye!');
     process.exit(0);
   });
 
   process.on('SIGTERM', async () => {
-    console.log('\nShutting down...');
+    console.log('\n========================================');
+    console.log('  Shutting down server...');
+    console.log('========================================');
     await server.stop();
+    console.log('Server stopped. Goodbye!');
     process.exit(0);
   });
 }

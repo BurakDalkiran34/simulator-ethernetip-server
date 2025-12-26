@@ -22,6 +22,7 @@ export class TCPServer {
     this.tagManager = options.tagManager || new TagManager();
     this.messageHandlers = new Map();
     this.clientEndianness = new Map(); // Track endianness per socket
+    this.activeSockets = new Set(); // Track active connections for cleanup
     
     // Device configuration
     this.deviceSlotNumber = options.deviceSlotNumber || 0;
@@ -1224,6 +1225,9 @@ export class TCPServer {
     this.verboseLog(`  Remote Address: ${socket.remoteAddress}:${socket.remotePort}`);
     this.verboseLog(`  Socket Ready State: ${socket.readyState}`);
     log(`Client connected: ${clientInfo}`);
+    
+    // Track active socket for cleanup on shutdown
+    this.activeSockets.add(socket);
 
     // Add connection event handlers
     socket.on('error', (error) => {
@@ -1235,7 +1239,8 @@ export class TCPServer {
       this.verboseLog(`[${new Date().toISOString()}] ===== CLIENT DISCONNECTED =====`);
       this.verboseLog(`  Client: ${clientInfo}`);
       this.verboseLog(`  Had Error: ${hadError}`);
-      // Clean up endianness mapping
+      // Clean up socket tracking
+      this.activeSockets.delete(socket);
       this.clientEndianness.delete(socket);
       log(`Client disconnected: ${clientInfo}`);
     });
@@ -1413,9 +1418,18 @@ export class TCPServer {
    */
   async stop() {
     return new Promise((resolve) => {
+      // Close all active connections first
+      console.log(`Closing ${this.activeSockets.size} active connection(s)...`);
+      for (const socket of this.activeSockets) {
+        socket.destroy();
+      }
+      this.activeSockets.clear();
+      this.clientEndianness.clear();
+      
       if (this.server) {
         this.server.close(() => {
           log('TCP Server stopped');
+          console.log('TCP Server stopped');
           resolve();
         });
       } else {
