@@ -30,8 +30,21 @@ export class TCPServer {
     this.productCode = options.productCode || 0x00000000;
     this.productName = options.productName || 'EtherNet/IP Simulator';
     
+    // Logging configuration
+    this.verboseLogging = options.verboseLogging !== undefined ? options.verboseLogging : true;
+    
     // Register default handlers
     this.registerDefaultHandlers();
+  }
+
+  /**
+   * Log message only if verbose logging is enabled
+   * @param  {...any} args - Arguments to log
+   */
+  verboseLog(...args) {
+    if (this.verboseLogging) {
+      console.log(...args);
+    }
   }
 
   /**
@@ -80,10 +93,10 @@ export class TCPServer {
    */
   async handleRegisterSession(socket, packet, isLittleEndian = false) {
     const clientInfo = `${socket.remoteAddress}:${socket.remotePort}`;
-    console.log(`[${new Date().toISOString()}] REQUEST: Register Session from ${clientInfo}`);
-    console.log(`  Command: 0x${packet.command.toString(16).padStart(4, '0')}`);
-    console.log(`  Session Handle: ${packet.sessionHandle}`);
-    console.log(`  Data: ${packet.data.toString('hex')}`);
+    this.verboseLog(`[${new Date().toISOString()}] REQUEST: Register Session from ${clientInfo}`);
+    this.verboseLog(`  Command: 0x${packet.command.toString(16).padStart(4, '0')}`);
+    this.verboseLog(`  Session Handle: ${packet.sessionHandle}`);
+    this.verboseLog(`  Data: ${packet.data.toString('hex')}`);
     log('Register session request');
     
     // Protocol version check (should be 1)
@@ -98,9 +111,9 @@ export class TCPServer {
         optionsFlags = packet.data.length >= 4 ? packet.data.readUInt16LE(2) : 0;
       }
       
-      console.log(`  Protocol Version (BE): ${packet.data.readUInt16BE(0)}`);
-      console.log(`  Protocol Version (LE): ${packet.data.readUInt16LE(0)}`);
-      console.log(`  Using Protocol Version: ${protocolVersion} (${isLittleEndian ? 'LE' : 'BE'})`);
+      this.verboseLog(`  Protocol Version (BE): ${packet.data.readUInt16BE(0)}`);
+      this.verboseLog(`  Protocol Version (LE): ${packet.data.readUInt16LE(0)}`);
+      this.verboseLog(`  Using Protocol Version: ${protocolVersion} (${isLittleEndian ? 'LE' : 'BE'})`);
       
       if (protocolVersion !== 1) {
         const response = packet.createResponse(
@@ -111,9 +124,9 @@ export class TCPServer {
         const responseBuffer = isLittleEndian 
           ? EncapsulationPacket.toBufferLE(response, Buffer.alloc(0))
           : response.toBuffer();
-        console.log(`[${new Date().toISOString()}] RESPONSE: Register Session (FAILED - Unsupported Protocol)`);
-        console.log(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
-        console.log(`  Response Data: ${responseBuffer.toString('hex')}`);
+        this.verboseLog(`[${new Date().toISOString()}] RESPONSE: Register Session (FAILED - Unsupported Protocol)`);
+        this.verboseLog(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
+        this.verboseLog(`  Response Data: ${responseBuffer.toString('hex')}`);
         socket.write(responseBuffer);
         return;
       }
@@ -143,18 +156,18 @@ export class TCPServer {
     
     const responseBuffer = response.toBuffer();
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] RESPONSE: Register Session (SUCCESS)`);
-    console.log(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
-    console.log(`  Session Handle: ${sessionHandle}`);
-    console.log(`  Response Length: ${responseBuffer.length} bytes`);
-    console.log(`  Response Data Length: ${responseData.length} bytes (should be 4)`);
-    console.log(`  Response Data: ${responseData.toString('hex')} (Protocol: 0x0001, Options: 0x0000)`);
-    console.log(`  Full Response (hex): ${responseBuffer.toString('hex')}`);
+    this.verboseLog(`[${timestamp}] RESPONSE: Register Session (SUCCESS)`);
+    this.verboseLog(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
+    this.verboseLog(`  Session Handle: ${sessionHandle}`);
+    this.verboseLog(`  Response Length: ${responseBuffer.length} bytes`);
+    this.verboseLog(`  Response Data Length: ${responseData.length} bytes (should be 4)`);
+    this.verboseLog(`  Response Data: ${responseData.toString('hex')} (Protocol: 0x0001, Options: 0x0000)`);
+    this.verboseLog(`  Full Response (hex): ${responseBuffer.toString('hex')}`);
     
     // Verify response format
     const expectedResponse = Buffer.from('0065000400000001000000005f7079636f6d6d5f0000000001000000', 'hex');
-    console.log(`  Expected Response (hex): ${expectedResponse.toString('hex')}`);
-    console.log(`  Response matches expected: ${responseBuffer.equals(expectedResponse) ? 'YES' : 'NO'}`);
+    this.verboseLog(`  Expected Response (hex): ${expectedResponse.toString('hex')}`);
+    this.verboseLog(`  Response matches expected: ${responseBuffer.equals(expectedResponse) ? 'YES' : 'NO'}`);
     
     // Convert response to client's endianness
     // Note: Some clients (like ethernet-ip npm package) send little-endian requests
@@ -167,27 +180,27 @@ export class TCPServer {
     // Write response and verify
     try {
       const written = socket.write(responseToSend);
-      console.log(`  Bytes written to socket: ${written}`);
-      console.log(`  Socket writable: ${socket.writable}`);
-      console.log(`  Socket destroyed: ${socket.destroyed}`);
-      console.log(`  Response endianness: ${isLittleEndian ? 'LITTLE-ENDIAN' : 'BIG-ENDIAN'}`);
-      console.log(`  Response sent (hex): ${responseToSend.toString('hex')}`);
+      this.verboseLog(`  Bytes written to socket: ${written}`);
+      this.verboseLog(`  Socket writable: ${socket.writable}`);
+      this.verboseLog(`  Socket destroyed: ${socket.destroyed}`);
+      this.verboseLog(`  Response endianness: ${isLittleEndian ? 'LITTLE-ENDIAN' : 'BIG-ENDIAN'}`);
+      this.verboseLog(`  Response sent (hex): ${responseToSend.toString('hex')}`);
       
       // Add error handler if not already present
       if (!socket._hasErrorHandler) {
         socket.on('error', (err) => {
-          console.log(`[${timestamp}] Socket error while sending Register Session response: ${err.message}`);
+          this.verboseLog(`[${timestamp}] Socket error while sending Register Session response: ${err.message}`);
         });
         socket._hasErrorHandler = true;
       }
       
       // Verify data was sent
       socket.once('drain', () => {
-        console.log(`[${timestamp}] Socket drain event - data sent`);
+        this.verboseLog(`[${timestamp}] Socket drain event - data sent`);
       });
       
     } catch (error) {
-      console.log(`[${timestamp}] ERROR writing Register Session response: ${error.message}`);
+      this.verboseLog(`[${timestamp}] ERROR writing Register Session response: ${error.message}`);
       log(`Error writing response: ${error.message}`);
     }
   }
@@ -197,8 +210,8 @@ export class TCPServer {
    */
   async handleUnregisterSession(socket, packet, isLittleEndian = false) {
     const clientInfo = `${socket.remoteAddress}:${socket.remotePort}`;
-    console.log(`[${new Date().toISOString()}] REQUEST: Unregister Session from ${clientInfo}`);
-    console.log(`  Session Handle: ${packet.sessionHandle}`);
+    this.verboseLog(`[${new Date().toISOString()}] REQUEST: Unregister Session from ${clientInfo}`);
+    this.verboseLog(`  Session Handle: ${packet.sessionHandle}`);
     log(`Unregister session: ${packet.sessionHandle}`);
     
     if (this.sessionManager.hasSession(packet.sessionHandle)) {
@@ -211,9 +224,9 @@ export class TCPServer {
       const responseBuffer = isLittleEndian 
         ? EncapsulationPacket.toBufferLE(response, Buffer.alloc(0))
         : response.toBuffer();
-      console.log(`[${new Date().toISOString()}] RESPONSE: Unregister Session (SUCCESS)`);
-      console.log(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
-      console.log(`  Response Data: ${responseBuffer.toString('hex')}`);
+      this.verboseLog(`[${new Date().toISOString()}] RESPONSE: Unregister Session (SUCCESS)`);
+      this.verboseLog(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
+      this.verboseLog(`  Response Data: ${responseBuffer.toString('hex')}`);
       socket.write(responseBuffer);
     } else {
       const response = packet.createResponse(
@@ -224,9 +237,9 @@ export class TCPServer {
       const responseBuffer = isLittleEndian 
         ? EncapsulationPacket.toBufferLE(response, Buffer.alloc(0))
         : response.toBuffer();
-      console.log(`[${new Date().toISOString()}] RESPONSE: Unregister Session (FAILED - Invalid Session)`);
-      console.log(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
-      console.log(`  Response Data: ${responseBuffer.toString('hex')}`);
+      this.verboseLog(`[${new Date().toISOString()}] RESPONSE: Unregister Session (FAILED - Invalid Session)`);
+      this.verboseLog(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
+      this.verboseLog(`  Response Data: ${responseBuffer.toString('hex')}`);
       socket.write(responseBuffer);
     }
   }
@@ -238,11 +251,11 @@ export class TCPServer {
     const clientInfo = `${socket.remoteAddress}:${socket.remotePort}`;
     const timestamp = new Date().toISOString();
     
-    console.log(`[${timestamp}] REQUEST: Send RR Data from ${clientInfo}`);
-    console.log(`  Command: 0x${packet.command.toString(16).padStart(4, '0')}`);
-    console.log(`  Session Handle: ${packet.sessionHandle}`);
-    console.log(`  Data Length: ${packet.data.length} bytes`);
-    console.log(`  Data (hex): ${packet.data.toString('hex')}`);
+    this.verboseLog(`[${timestamp}] REQUEST: Send RR Data from ${clientInfo}`);
+    this.verboseLog(`  Command: 0x${packet.command.toString(16).padStart(4, '0')}`);
+    this.verboseLog(`  Session Handle: ${packet.sessionHandle}`);
+    this.verboseLog(`  Data Length: ${packet.data.length} bytes`);
+    this.verboseLog(`  Data (hex): ${packet.data.toString('hex')}`);
     
     if (!this.sessionManager.hasSession(packet.sessionHandle)) {
       const response = packet.createResponse(
@@ -253,8 +266,8 @@ export class TCPServer {
       const responseBuffer = isLittleEndian 
         ? EncapsulationPacket.toBufferLE(response, Buffer.alloc(0))
         : response.toBuffer();
-      console.log(`[${timestamp}] RESPONSE: Send RR Data (FAILED - Invalid Session Handle)`);
-      console.log(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
+      this.verboseLog(`[${timestamp}] RESPONSE: Send RR Data (FAILED - Invalid Session Handle)`);
+      this.verboseLog(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
       socket.write(responseBuffer);
       return;
     }
@@ -287,7 +300,7 @@ export class TCPServer {
             const itemLength = packet.data.readUInt16LE(offset + 2);
             offset += 4;
             
-            console.log(`  CPF Item ${i + 1}: Type=0x${itemType.toString(16).padStart(4, '0')}, Length=${itemLength}`);
+            this.verboseLog(`  CPF Item ${i + 1}: Type=0x${itemType.toString(16).padStart(4, '0')}, Length=${itemLength}`);
             
             // Item type 0x00B2 = Unconnected Data Item (contains CIP message)
             if (itemType === 0x00B2) {
@@ -307,7 +320,7 @@ export class TCPServer {
             const itemLength = packet.data.readUInt16BE(offset + 2);
             offset += 4;
             
-            console.log(`  CPF Item ${i + 1}: Type=0x${itemType.toString(16).padStart(4, '0')}, Length=${itemLength}`);
+            this.verboseLog(`  CPF Item ${i + 1}: Type=0x${itemType.toString(16).padStart(4, '0')}, Length=${itemLength}`);
             
             // Item type 0x00B2 = Unconnected Data Item (contains CIP message)
             if (itemType === 0x00B2) {
@@ -317,20 +330,20 @@ export class TCPServer {
           }
         }
         
-        console.log(`  Interface Handle: ${interfaceHandle} (0x${interfaceHandle.toString(16).padStart(8, '0')})`);
-        console.log(`  Timeout: ${timeout} ms`);
-        console.log(`  Item Count: ${itemCount}`);
+        this.verboseLog(`  Interface Handle: ${interfaceHandle} (0x${interfaceHandle.toString(16).padStart(8, '0')})`);
+        this.verboseLog(`  Timeout: ${timeout} ms`);
+        this.verboseLog(`  Item Count: ${itemCount}`);
       }
       
-      console.log(`  CIP Message Buffer (${cipMessageBuffer.length} bytes): ${cipMessageBuffer.toString('hex')}`);
+      this.verboseLog(`  CIP Message Buffer (${cipMessageBuffer.length} bytes): ${cipMessageBuffer.toString('hex')}`);
       
       const cipMessage = CIPMessage.fromBuffer(cipMessageBuffer);
       const service = cipMessage.service & 0x7F;
-      console.log(`  CIP Service: 0x${service.toString(16).padStart(2, '0')} (${service === 0x0E ? 'Get Attribute Single' : service === 0x4C ? 'Read Tag' : 'Unknown'})`);
-      console.log(`  CIP Path: ${cipMessage.path.toString('hex')}`);
-      console.log(`  CIP Path Length: ${cipMessage.path.length} bytes`);
+      this.verboseLog(`  CIP Service: 0x${service.toString(16).padStart(2, '0')} (${service === 0x0E ? 'Get Attribute Single' : service === 0x4C ? 'Read Tag' : 'Unknown'})`);
+      this.verboseLog(`  CIP Path: ${cipMessage.path.toString('hex')}`);
+      this.verboseLog(`  CIP Path Length: ${cipMessage.path.length} bytes`);
       if (cipMessage.data.length > 0) {
-        console.log(`  CIP Data: ${cipMessage.data.toString('hex')}`);
+        this.verboseLog(`  CIP Data: ${cipMessage.data.toString('hex')}`);
       }
       
       log(`CIP Service: 0x${service.toString(16)}`);
@@ -386,17 +399,17 @@ export class TCPServer {
       const responseBuffer = isLittleEndian 
         ? EncapsulationPacket.toBufferLE(response, responseData)
         : response.toBuffer();
-      console.log(`[${timestamp}] RESPONSE: Send RR Data (SUCCESS)`);
-      console.log(`  Encapsulation Status: 0x${response.status.toString(16).padStart(8, '0')}`);
-      console.log(`  CIP Response Status: 0x${responseStatus.toString(16).padStart(2, '0')}`);
-      console.log(`  Response Data Length: ${cipResponse.toBuffer().length} bytes`);
-      console.log(`  Response Data (hex): ${cipResponse.toBuffer().toString('hex')}`);
-      console.log(`  Response endianness: ${isLittleEndian ? 'LITTLE-ENDIAN' : 'BIG-ENDIAN'}`);
+      this.verboseLog(`[${timestamp}] RESPONSE: Send RR Data (SUCCESS)`);
+      this.verboseLog(`  Encapsulation Status: 0x${response.status.toString(16).padStart(8, '0')}`);
+      this.verboseLog(`  CIP Response Status: 0x${responseStatus.toString(16).padStart(2, '0')}`);
+      this.verboseLog(`  Response Data Length: ${cipResponse.toBuffer().length} bytes`);
+      this.verboseLog(`  Response Data (hex): ${cipResponse.toBuffer().toString('hex')}`);
+      this.verboseLog(`  Response endianness: ${isLittleEndian ? 'LITTLE-ENDIAN' : 'BIG-ENDIAN'}`);
       
       socket.write(responseBuffer);
     } catch (error) {
       log(`Error handling CIP message: ${error.message}`);
-      console.log(`[${timestamp}] RESPONSE: Send RR Data (ERROR: ${error.message})`);
+      this.verboseLog(`[${timestamp}] RESPONSE: Send RR Data (ERROR: ${error.message})`);
       const response = packet.createResponse(
         EncapsulationPacket.STATUS.INVALID_LENGTH,
         Buffer.alloc(0)
@@ -405,7 +418,7 @@ export class TCPServer {
       const responseBuffer = isLittleEndian 
         ? EncapsulationPacket.toBufferLE(response, Buffer.alloc(0))
         : response.toBuffer();
-      console.log(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
+      this.verboseLog(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
       socket.write(responseBuffer);
     }
   }
@@ -418,7 +431,7 @@ export class TCPServer {
   async handleCIPMessage(message) {
     const service = message.service & 0x7F; // Remove response bit
     
-    console.log(`  [CIP] Handling service: 0x${service.toString(16).padStart(2, '0')}`);
+    this.verboseLog(`  [CIP] Handling service: 0x${service.toString(16).padStart(2, '0')}`);
     
     // Handle Multiple Service Packet (0x0A)
     if (service === CIPMessage.SERVICE.MULTIPLE_SERVICE_PACKET) {
@@ -446,7 +459,7 @@ export class TCPServer {
     }
 
     // Default handler - returns not supported
-    console.log(`  [CIP] Service 0x${service.toString(16)} not supported`);
+    this.verboseLog(`  [CIP] Service 0x${service.toString(16)} not supported`);
     const response = message.createResponse(
       CIPMessage.STATUS.SERVICE_NOT_SUPPORTED,
       Buffer.alloc(0)
@@ -461,7 +474,7 @@ export class TCPServer {
    * @returns {Promise<CIPMessage>}
    */
   async handleUnconnectedSend(message) {
-    console.log(`  [CIP] Handling Unconnected Send (0x52)`);
+    this.verboseLog(`  [CIP] Handling Unconnected Send (0x52)`);
     
     // Unconnected Send data format:
     // - Priority/Time_tick (1 byte)
@@ -474,7 +487,7 @@ export class TCPServer {
     // - Route Path (variable)
     
     if (message.data.length < 4) {
-      console.log(`  [CIP] Unconnected Send data too short: ${message.data.length} bytes`);
+      this.verboseLog(`  [CIP] Unconnected Send data too short: ${message.data.length} bytes`);
       return message.createResponse(CIPMessage.STATUS.NOT_ENOUGH_DATA, Buffer.alloc(0));
     }
     
@@ -482,24 +495,24 @@ export class TCPServer {
     const timeoutTicks = message.data[1];
     const messageSize = message.data.readUInt16LE(2);
     
-    console.log(`  [CIP] Priority/Time_tick: ${priorityTimeTick}`);
-    console.log(`  [CIP] Timeout_ticks: ${timeoutTicks}`);
-    console.log(`  [CIP] Embedded Message Size: ${messageSize} bytes`);
+    this.verboseLog(`  [CIP] Priority/Time_tick: ${priorityTimeTick}`);
+    this.verboseLog(`  [CIP] Timeout_ticks: ${timeoutTicks}`);
+    this.verboseLog(`  [CIP] Embedded Message Size: ${messageSize} bytes`);
     
     if (message.data.length < 4 + messageSize) {
-      console.log(`  [CIP] Not enough data for embedded message`);
+      this.verboseLog(`  [CIP] Not enough data for embedded message`);
       return message.createResponse(CIPMessage.STATUS.NOT_ENOUGH_DATA, Buffer.alloc(0));
     }
     
     // Extract embedded CIP message
     const embeddedMessageBuffer = message.data.slice(4, 4 + messageSize);
-    console.log(`  [CIP] Embedded Message (hex): ${embeddedMessageBuffer.toString('hex')}`);
+    this.verboseLog(`  [CIP] Embedded Message (hex): ${embeddedMessageBuffer.toString('hex')}`);
     
     try {
       // Parse and handle embedded CIP message
       const embeddedMessage = CIPMessage.fromBuffer(embeddedMessageBuffer);
-      console.log(`  [CIP] Embedded Service: 0x${(embeddedMessage.service & 0x7F).toString(16).padStart(2, '0')}`);
-      console.log(`  [CIP] Embedded Path: ${embeddedMessage.path.toString('hex')}`);
+      this.verboseLog(`  [CIP] Embedded Service: 0x${(embeddedMessage.service & 0x7F).toString(16).padStart(2, '0')}`);
+      this.verboseLog(`  [CIP] Embedded Path: ${embeddedMessage.path.toString('hex')}`);
       
       // Process the embedded message
       const embeddedResponse = await this.handleCIPMessage(embeddedMessage);
@@ -507,13 +520,13 @@ export class TCPServer {
       // For Unconnected Send, return the embedded response directly
       // The embedded response already has the correct service, status, and data
       const embeddedResponseBuffer = embeddedResponse.toBuffer();
-      console.log(`  [CIP] Embedded Response (hex): ${embeddedResponseBuffer.toString('hex')}`);
+      this.verboseLog(`  [CIP] Embedded Response (hex): ${embeddedResponseBuffer.toString('hex')}`);
       
       // Return the embedded response as-is (not wrapped in Unconnected Send)
       // The embedded response already contains the proper CIP response format
       return embeddedResponse;
     } catch (error) {
-      console.log(`  [CIP] Error processing embedded message: ${error.message}`);
+      this.verboseLog(`  [CIP] Error processing embedded message: ${error.message}`);
       return message.createResponse(CIPMessage.STATUS.GENERAL_ERROR, Buffer.alloc(0));
     }
   }
@@ -524,11 +537,11 @@ export class TCPServer {
    * @returns {Promise<CIPMessage>}
    */
   async handleGetAttributeAll(message) {
-    console.log(`  [CIP] Handling Get Attribute All (0x01)`);
+    this.verboseLog(`  [CIP] Handling Get Attribute All (0x01)`);
     
     // Parse path to get class and instance
     const pathInfo = CIPPath.parse(message.path);
-    console.log(`  [CIP] Path: Class=0x${(pathInfo.classId || 0).toString(16)}, Instance=${pathInfo.instanceId || 0}`);
+    this.verboseLog(`  [CIP] Path: Class=0x${(pathInfo.classId || 0).toString(16)}, Instance=${pathInfo.instanceId || 0}`);
     
     // Identity Object (Class 0x01)
     if (pathInfo.classId === 0x01) {
@@ -545,7 +558,7 @@ export class TCPServer {
    * @returns {Promise<CIPMessage>}
    */
   async handleIdentityGetAttributeAll(message) {
-    console.log(`  [CIP] Returning Identity Object attributes`);
+    this.verboseLog(`  [CIP] Returning Identity Object attributes`);
     
     // Identity Object attributes (Class 0x01, Instance 1)
     // Attribute 1: Vendor ID (UINT)
@@ -595,7 +608,7 @@ export class TCPServer {
     offset += 1;
     productNameBytes.copy(responseData, offset, 0, productNameLength);
     
-    console.log(`  [CIP] Identity response: ${responseData.toString('hex')}`);
+    this.verboseLog(`  [CIP] Identity response: ${responseData.toString('hex')}`);
     
     return message.createResponse(CIPMessage.STATUS.SUCCESS, responseData);
   }
@@ -607,9 +620,9 @@ export class TCPServer {
    * @returns {Promise<CIPMessage>}
    */
   async handleMultipleServicePacket(message) {
-    console.log(`  [CIP] Handling Multiple Service Packet (0x0A)`);
-    console.log(`  [CIP] Data length: ${message.data.length} bytes`);
-    console.log(`  [CIP] Data (hex): ${message.data.toString('hex')}`);
+    this.verboseLog(`  [CIP] Handling Multiple Service Packet (0x0A)`);
+    this.verboseLog(`  [CIP] Data length: ${message.data.length} bytes`);
+    this.verboseLog(`  [CIP] Data (hex): ${message.data.toString('hex')}`);
     
     // Multiple Service Packet request format:
     // - Number of Services (2 bytes, UINT)
@@ -617,15 +630,15 @@ export class TCPServer {
     // - Service Requests (variable)
     
     if (message.data.length < 2) {
-      console.log(`  [CIP] Multiple Service Packet data too short`);
+      this.verboseLog(`  [CIP] Multiple Service Packet data too short`);
       return message.createResponse(CIPMessage.STATUS.NOT_ENOUGH_DATA, Buffer.alloc(0));
     }
     
     const serviceCount = message.data.readUInt16LE(0);
-    console.log(`  [CIP] Service count: ${serviceCount}`);
+    this.verboseLog(`  [CIP] Service count: ${serviceCount}`);
     
     if (message.data.length < 2 + (serviceCount * 2)) {
-      console.log(`  [CIP] Not enough data for service offsets`);
+      this.verboseLog(`  [CIP] Not enough data for service offsets`);
       return message.createResponse(CIPMessage.STATUS.NOT_ENOUGH_DATA, Buffer.alloc(0));
     }
     
@@ -634,7 +647,7 @@ export class TCPServer {
     for (let i = 0; i < serviceCount; i++) {
       offsets.push(message.data.readUInt16LE(2 + (i * 2)));
     }
-    console.log(`  [CIP] Service offsets: ${offsets.join(', ')}`);
+    this.verboseLog(`  [CIP] Service offsets: ${offsets.join(', ')}`);
     
     // Process each service request
     const responses = [];
@@ -644,10 +657,10 @@ export class TCPServer {
       
       // Extract service request
       const serviceData = message.data.slice(startOffset, endOffset);
-      console.log(`  [CIP] Service ${i + 1} (offset ${startOffset}-${endOffset}): ${serviceData.toString('hex')}`);
+      this.verboseLog(`  [CIP] Service ${i + 1} (offset ${startOffset}-${endOffset}): ${serviceData.toString('hex')}`);
       
       if (serviceData.length < 2) {
-        console.log(`  [CIP] Service ${i + 1} data too short`);
+        this.verboseLog(`  [CIP] Service ${i + 1} data too short`);
         // Create error response for this service
         const errorResponse = new CIPMessage();
         errorResponse.service = 0x80; // Generic error response
@@ -660,13 +673,13 @@ export class TCPServer {
       try {
         // Parse embedded service request
         const embeddedMessage = CIPMessage.fromBuffer(serviceData);
-        console.log(`  [CIP] Service ${i + 1}: service=0x${(embeddedMessage.service & 0x7F).toString(16)}, path=${embeddedMessage.path.toString('hex')}`);
+        this.verboseLog(`  [CIP] Service ${i + 1}: service=0x${(embeddedMessage.service & 0x7F).toString(16)}, path=${embeddedMessage.path.toString('hex')}`);
         
         // Process the embedded service
         const embeddedResponse = await this.handleCIPMessage(embeddedMessage);
         responses.push(embeddedResponse);
       } catch (error) {
-        console.log(`  [CIP] Error processing service ${i + 1}: ${error.message}`);
+        this.verboseLog(`  [CIP] Error processing service ${i + 1}: ${error.message}`);
         const errorResponse = new CIPMessage();
         errorResponse.service = serviceData[0] | 0x80;
         errorResponse.path = Buffer.alloc(0);
@@ -706,7 +719,7 @@ export class TCPServer {
       writeOffset += buf.length;
     }
     
-    console.log(`  [CIP] Multiple Service Packet response: ${responseData.toString('hex')}`);
+    this.verboseLog(`  [CIP] Multiple Service Packet response: ${responseData.toString('hex')}`);
     
     return message.createResponse(CIPMessage.STATUS.SUCCESS, responseData);
   }
@@ -717,16 +730,16 @@ export class TCPServer {
    * @returns {Promise<CIPMessage>}
    */
   async handleReadTag(message) {
-    console.log(`  [CIP] Handling Read Tag (0x4C)`);
-    console.log(`  [CIP] Path (hex): ${message.path.toString('hex')}`);
-    console.log(`  [CIP] Data (hex): ${message.data.toString('hex')}`);
+    this.verboseLog(`  [CIP] Handling Read Tag (0x4C)`);
+    this.verboseLog(`  [CIP] Path (hex): ${message.path.toString('hex')}`);
+    this.verboseLog(`  [CIP] Data (hex): ${message.data.toString('hex')}`);
     
     try {
       let tagData = null;
       
       // Try to extract tag name from symbolic path
       const tagName = CIPPath.extractTagName(message.path);
-      console.log(`  [CIP] Extracted tag name: ${tagName}`);
+      this.verboseLog(`  [CIP] Extracted tag name: ${tagName}`);
       
       if (tagName) {
         // First try to read by name
@@ -734,7 +747,7 @@ export class TCPServer {
         
         // If not found by name, try to find by address
         if (!tagData) {
-          console.log(`  [CIP] Tag not found by name, trying address: ${tagName}`);
+          this.verboseLog(`  [CIP] Tag not found by name, trying address: ${tagName}`);
           const tagByAddress = this.tagManager.findTagByAddress(tagName);
           if (tagByAddress) {
             tagData = this.tagManager.readTag(tagByAddress.name);
@@ -797,7 +810,7 @@ export class TCPServer {
       responseData.writeUInt16LE(0x00C4, 0); // Type: DINT
       valueBuffer.copy(responseData, 2);
       
-      console.log(`  [CIP] Read Tag response: Type=DINT, Value=${tagData.value}, Data=${responseData.toString('hex')}`);
+      this.verboseLog(`  [CIP] Read Tag response: Type=DINT, Value=${tagData.value}, Data=${responseData.toString('hex')}`);
       
       return message.createResponse(
         CIPMessage.STATUS.SUCCESS,
@@ -916,11 +929,11 @@ export class TCPServer {
    * @returns {CIPMessage}
    */
   handleIdentityObject(instanceId, attributeId, message) {
-    console.log(`  -> Identity Object: Instance=${instanceId}, Attribute=${attributeId}`);
+    this.verboseLog(`  -> Identity Object: Instance=${instanceId}, Attribute=${attributeId}`);
     
     // Identity Object typically uses instance 1
     if (instanceId !== 1 && instanceId !== 0) {
-      console.log(`  <- Identity Object: OBJECT_DOES_NOT_EXIST`);
+      this.verboseLog(`  <- Identity Object: OBJECT_DOES_NOT_EXIST`);
       return message.createResponse(
         CIPMessage.STATUS.OBJECT_DOES_NOT_EXIST,
         Buffer.alloc(0)
@@ -931,7 +944,7 @@ export class TCPServer {
     if (attributeId === 1) {
       const data = Buffer.alloc(2);
       data.writeUInt16LE(this.vendorId, 0);
-      console.log(`  <- Identity Object Attribute 1 (Vendor ID): 0x${this.vendorId.toString(16).padStart(4, '0')}`);
+      this.verboseLog(`  <- Identity Object Attribute 1 (Vendor ID): 0x${this.vendorId.toString(16).padStart(4, '0')}`);
       return message.createResponse(CIPMessage.STATUS.SUCCESS, data);
     }
 
@@ -939,7 +952,7 @@ export class TCPServer {
     if (attributeId === 2) {
       const data = Buffer.alloc(2);
       data.writeUInt16LE(this.deviceType, 0);
-      console.log(`  <- Identity Object Attribute 2 (Device Type): 0x${this.deviceType.toString(16).padStart(4, '0')}`);
+      this.verboseLog(`  <- Identity Object Attribute 2 (Device Type): 0x${this.deviceType.toString(16).padStart(4, '0')}`);
       return message.createResponse(CIPMessage.STATUS.SUCCESS, data);
     }
 
@@ -947,7 +960,7 @@ export class TCPServer {
     if (attributeId === 3) {
       const data = Buffer.alloc(2);
       data.writeUInt16LE(this.productCode & 0xFFFF, 0);
-      console.log(`  <- Identity Object Attribute 3 (Product Code): 0x${(this.productCode & 0xFFFF).toString(16).padStart(4, '0')}`);
+      this.verboseLog(`  <- Identity Object Attribute 3 (Product Code): 0x${(this.productCode & 0xFFFF).toString(16).padStart(4, '0')}`);
       return message.createResponse(CIPMessage.STATUS.SUCCESS, data);
     }
 
@@ -956,7 +969,7 @@ export class TCPServer {
       const data = Buffer.alloc(2);
       data.writeUInt8(0x01, 0); // Major revision
       data.writeUInt8(0x00, 1); // Minor revision
-      console.log(`  <- Identity Object Attribute 4 (Revision): 1.0`);
+      this.verboseLog(`  <- Identity Object Attribute 4 (Revision): 1.0`);
       return message.createResponse(CIPMessage.STATUS.SUCCESS, data);
     }
 
@@ -964,7 +977,7 @@ export class TCPServer {
     if (attributeId === 5) {
       const data = Buffer.alloc(2);
       data.writeUInt16LE(0x0001, 0); // Status: configured
-      console.log(`  <- Identity Object Attribute 5 (Status): 0x0001 (configured)`);
+      this.verboseLog(`  <- Identity Object Attribute 5 (Status): 0x0001 (configured)`);
       return message.createResponse(CIPMessage.STATUS.SUCCESS, data);
     }
 
@@ -972,7 +985,7 @@ export class TCPServer {
     if (attributeId === 6) {
       const data = Buffer.alloc(4);
       data.writeUInt32LE(0x00000000, 0);
-      console.log(`  <- Identity Object Attribute 6 (Serial Number): 0x00000000`);
+      this.verboseLog(`  <- Identity Object Attribute 6 (Serial Number): 0x00000000`);
       return message.createResponse(CIPMessage.STATUS.SUCCESS, data);
     }
 
@@ -982,11 +995,11 @@ export class TCPServer {
       const data = Buffer.alloc(1 + nameBytes.length);
       data[0] = nameBytes.length; // Length byte
       nameBytes.copy(data, 1);
-      console.log(`  <- Identity Object Attribute 7 (Product Name): ${this.productName}`);
+      this.verboseLog(`  <- Identity Object Attribute 7 (Product Name): ${this.productName}`);
       return message.createResponse(CIPMessage.STATUS.SUCCESS, data);
     }
 
-    console.log(`  <- Identity Object: ATTRIBUTE_NOT_SUPPORTED (Attribute ${attributeId})`);
+    this.verboseLog(`  <- Identity Object: ATTRIBUTE_NOT_SUPPORTED (Attribute ${attributeId})`);
     log(`Identity Object: Unsupported attribute ${attributeId}`);
     return message.createResponse(
       CIPMessage.STATUS.ATTRIBUTE_NOT_SUPPORTED,
@@ -1002,11 +1015,11 @@ export class TCPServer {
    * @returns {CIPMessage}
    */
   handleMessageRouterObject(instanceId, attributeId, message) {
-    console.log(`  -> Message Router Object: Instance=${instanceId}, Attribute=${attributeId}`);
+    this.verboseLog(`  -> Message Router Object: Instance=${instanceId}, Attribute=${attributeId}`);
     
     // Message Router Object typically uses instance 1
     if (instanceId !== 1 && instanceId !== 0) {
-      console.log(`  <- Message Router Object: OBJECT_DOES_NOT_EXIST`);
+      this.verboseLog(`  <- Message Router Object: OBJECT_DOES_NOT_EXIST`);
       return message.createResponse(
         CIPMessage.STATUS.OBJECT_DOES_NOT_EXIST,
         Buffer.alloc(0)
@@ -1017,7 +1030,7 @@ export class TCPServer {
     if (attributeId === 1) {
       const data = Buffer.alloc(2);
       data.writeUInt16LE(3, 0); // Identity, Message Router, Connection Manager
-      console.log(`  <- Message Router Object Attribute 1 (Number of Objects): 3`);
+      this.verboseLog(`  <- Message Router Object Attribute 1 (Number of Objects): 3`);
       return message.createResponse(CIPMessage.STATUS.SUCCESS, data);
     }
 
@@ -1025,7 +1038,7 @@ export class TCPServer {
     if (attributeId === 2) {
       const data = Buffer.alloc(2);
       data.writeUInt16LE(0, 0);
-      console.log(`  <- Message Router Object Attribute 2 (Number of Class Instances): 0`);
+      this.verboseLog(`  <- Message Router Object Attribute 2 (Number of Class Instances): 0`);
       return message.createResponse(CIPMessage.STATUS.SUCCESS, data);
     }
 
@@ -1033,11 +1046,11 @@ export class TCPServer {
     if (attributeId === 3) {
       const data = Buffer.alloc(2);
       data.writeUInt16LE(0, 0);
-      console.log(`  <- Message Router Object Attribute 3 (Number of Instances): 0`);
+      this.verboseLog(`  <- Message Router Object Attribute 3 (Number of Instances): 0`);
       return message.createResponse(CIPMessage.STATUS.SUCCESS, data);
     }
 
-    console.log(`  <- Message Router Object: ATTRIBUTE_NOT_SUPPORTED (Attribute ${attributeId})`);
+    this.verboseLog(`  <- Message Router Object: ATTRIBUTE_NOT_SUPPORTED (Attribute ${attributeId})`);
     log(`Message Router Object: Unsupported attribute ${attributeId}`);
     return message.createResponse(
       CIPMessage.STATUS.ATTRIBUTE_NOT_SUPPORTED,
@@ -1053,11 +1066,11 @@ export class TCPServer {
    * @returns {CIPMessage}
    */
   handleConnectionManagerObject(instanceId, attributeId, message) {
-    console.log(`  -> Connection Manager Object: Instance=${instanceId}, Attribute=${attributeId}`);
+    this.verboseLog(`  -> Connection Manager Object: Instance=${instanceId}, Attribute=${attributeId}`);
     
     // Connection Manager Object typically uses instance 1
     if (instanceId !== 1 && instanceId !== 0) {
-      console.log(`  <- Connection Manager Object: OBJECT_DOES_NOT_EXIST`);
+      this.verboseLog(`  <- Connection Manager Object: OBJECT_DOES_NOT_EXIST`);
       return message.createResponse(
         CIPMessage.STATUS.OBJECT_DOES_NOT_EXIST,
         Buffer.alloc(0)
@@ -1068,7 +1081,7 @@ export class TCPServer {
     if (attributeId === 1) {
       const data = Buffer.alloc(2);
       data.writeUInt16LE(128, 0); // Max connections
-      console.log(`  <- Connection Manager Object Attribute 1 (Maximum Connections): 128`);
+      this.verboseLog(`  <- Connection Manager Object Attribute 1 (Maximum Connections): 128`);
       return message.createResponse(CIPMessage.STATUS.SUCCESS, data);
     }
 
@@ -1077,11 +1090,11 @@ export class TCPServer {
       const activeSessions = this.sessionManager.getAllSessions().length;
       const data = Buffer.alloc(2);
       data.writeUInt16LE(activeSessions, 0);
-      console.log(`  <- Connection Manager Object Attribute 2 (Active Connections): ${activeSessions}`);
+      this.verboseLog(`  <- Connection Manager Object Attribute 2 (Active Connections): ${activeSessions}`);
       return message.createResponse(CIPMessage.STATUS.SUCCESS, data);
     }
 
-    console.log(`  <- Connection Manager Object: ATTRIBUTE_NOT_SUPPORTED (Attribute ${attributeId})`);
+    this.verboseLog(`  <- Connection Manager Object: ATTRIBUTE_NOT_SUPPORTED (Attribute ${attributeId})`);
     log(`Connection Manager Object: Unsupported attribute ${attributeId}`);
     return message.createResponse(
       CIPMessage.STATUS.ATTRIBUTE_NOT_SUPPORTED,
@@ -1095,7 +1108,7 @@ export class TCPServer {
   async handleListServices(socket, packet, isLittleEndian = false) {
     const clientInfo = `${socket.remoteAddress}:${socket.remotePort}`;
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] REQUEST: List Services from ${clientInfo}`);
+    this.verboseLog(`[${timestamp}] REQUEST: List Services from ${clientInfo}`);
     log('List services request');
     
     // Service list: only Encapsulation service
@@ -1115,10 +1128,10 @@ export class TCPServer {
     const responseBuffer = isLittleEndian 
       ? EncapsulationPacket.toBufferLE(response, serviceData)
       : response.toBuffer();
-    console.log(`[${timestamp}] RESPONSE: List Services (SUCCESS)`);
-    console.log(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
-    console.log(`  Response Data: ${serviceData.toString('hex')}`);
-    console.log(`  Response endianness: ${isLittleEndian ? 'LITTLE-ENDIAN' : 'BIG-ENDIAN'}`);
+    this.verboseLog(`[${timestamp}] RESPONSE: List Services (SUCCESS)`);
+    this.verboseLog(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
+    this.verboseLog(`  Response Data: ${serviceData.toString('hex')}`);
+    this.verboseLog(`  Response endianness: ${isLittleEndian ? 'LITTLE-ENDIAN' : 'BIG-ENDIAN'}`);
     
     socket.write(responseBuffer);
   }
@@ -1129,13 +1142,14 @@ export class TCPServer {
   async handleListIdentity(socket, packet, isLittleEndian = false) {
     const clientInfo = `${socket.remoteAddress}:${socket.remotePort}`;
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] REQUEST: List Identity from ${clientInfo}`);
+    this.verboseLog(`[${timestamp}] REQUEST: List Identity from ${clientInfo}`);
     log('List identity request');
     
     // Get server's actual IP address
     const serverAddress = socket.localAddress || '0.0.0.0';
     const ipParts = serverAddress.split('.').map(Number);
-    const ipAddress = (ipParts[0] << 24) | (ipParts[1] << 16) | (ipParts[2] << 8) | ipParts[3];
+    // Use >>> 0 to convert signed 32-bit to unsigned (bitwise ops in JS return signed 32-bit)
+    const ipAddress = ((ipParts[0] << 24) | (ipParts[1] << 16) | (ipParts[2] << 8) | ipParts[3]) >>> 0;
     
     // Identity information according to EtherNet/IP spec
     // Format: 16 bytes header + variable length product name
@@ -1179,21 +1193,21 @@ export class TCPServer {
       identityData
     );
     
-    console.log(`[${timestamp}] RESPONSE: List Identity (SUCCESS)`);
-    console.log(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
-    console.log(`  IP Address: ${serverAddress}`);
-    console.log(`  Vendor ID: 0x${this.vendorId.toString(16).padStart(4, '0')}`);
-    console.log(`  Device Type: 0x${this.deviceType.toString(16).padStart(4, '0')}`);
-    console.log(`  Product Code: 0x${this.productCode.toString(16).padStart(8, '0')}`);
-    console.log(`  Product Name: ${this.productName}`);
-    console.log(`  Response Data Length: ${identityData.length} bytes`);
-    console.log(`  Response Data (hex): ${identityData.toString('hex')}`);
+    this.verboseLog(`[${timestamp}] RESPONSE: List Identity (SUCCESS)`);
+    this.verboseLog(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
+    this.verboseLog(`  IP Address: ${serverAddress}`);
+    this.verboseLog(`  Vendor ID: 0x${this.vendorId.toString(16).padStart(4, '0')}`);
+    this.verboseLog(`  Device Type: 0x${this.deviceType.toString(16).padStart(4, '0')}`);
+    this.verboseLog(`  Product Code: 0x${this.productCode.toString(16).padStart(8, '0')}`);
+    this.verboseLog(`  Product Name: ${this.productName}`);
+    this.verboseLog(`  Response Data Length: ${identityData.length} bytes`);
+    this.verboseLog(`  Response Data (hex): ${identityData.toString('hex')}`);
     
     // Send response in client's endianness
     const responseBuffer = isLittleEndian 
       ? EncapsulationPacket.toBufferLE(response, identityData)
       : response.toBuffer();
-    console.log(`  Response endianness: ${isLittleEndian ? 'LITTLE-ENDIAN' : 'BIG-ENDIAN'}`);
+    this.verboseLog(`  Response endianness: ${isLittleEndian ? 'LITTLE-ENDIAN' : 'BIG-ENDIAN'}`);
     
     socket.write(responseBuffer);
   }
@@ -1204,30 +1218,30 @@ export class TCPServer {
   handleConnection(socket) {
     const clientInfo = `${socket.remoteAddress}:${socket.remotePort}`;
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] ===== NEW CLIENT CONNECTION =====`);
-    console.log(`  Client: ${clientInfo}`);
-    console.log(`  Local Address: ${socket.localAddress}:${socket.localPort}`);
-    console.log(`  Remote Address: ${socket.remoteAddress}:${socket.remotePort}`);
-    console.log(`  Socket Ready State: ${socket.readyState}`);
+    this.verboseLog(`[${timestamp}] ===== NEW CLIENT CONNECTION =====`);
+    this.verboseLog(`  Client: ${clientInfo}`);
+    this.verboseLog(`  Local Address: ${socket.localAddress}:${socket.localPort}`);
+    this.verboseLog(`  Remote Address: ${socket.remoteAddress}:${socket.remotePort}`);
+    this.verboseLog(`  Socket Ready State: ${socket.readyState}`);
     log(`Client connected: ${clientInfo}`);
 
     // Add connection event handlers
     socket.on('error', (error) => {
-      console.log(`[${new Date().toISOString()}] Socket error from ${clientInfo}: ${error.message}`);
+      this.verboseLog(`[${new Date().toISOString()}] Socket error from ${clientInfo}: ${error.message}`);
       log(`Socket error: ${error.message}`);
     });
 
     socket.on('close', (hadError) => {
-      console.log(`[${new Date().toISOString()}] ===== CLIENT DISCONNECTED =====`);
-      console.log(`  Client: ${clientInfo}`);
-      console.log(`  Had Error: ${hadError}`);
+      this.verboseLog(`[${new Date().toISOString()}] ===== CLIENT DISCONNECTED =====`);
+      this.verboseLog(`  Client: ${clientInfo}`);
+      this.verboseLog(`  Had Error: ${hadError}`);
       // Clean up endianness mapping
       this.clientEndianness.delete(socket);
       log(`Client disconnected: ${clientInfo}`);
     });
 
     socket.on('end', () => {
-      console.log(`[${new Date().toISOString()}] Client ended connection: ${clientInfo}`);
+      this.verboseLog(`[${new Date().toISOString()}] Client ended connection: ${clientInfo}`);
       log(`Client ended connection: ${clientInfo}`);
     });
 
@@ -1239,10 +1253,10 @@ export class TCPServer {
       
       if (!firstDataReceived) {
         firstDataReceived = true;
-        console.log(`[${dataTimestamp}] ===== FIRST DATA RECEIVED from ${clientInfo} =====`);
-        console.log(`  Data length: ${data.length} bytes`);
-        console.log(`  Data (hex): ${data.toString('hex')}`);
-        console.log(`========================================`);
+        this.verboseLog(`[${dataTimestamp}] ===== FIRST DATA RECEIVED from ${clientInfo} =====`);
+        this.verboseLog(`  Data length: ${data.length} bytes`);
+        this.verboseLog(`  Data (hex): ${data.toString('hex')}`);
+        this.verboseLog(`========================================`);
       }
       
       buffer = Buffer.concat([buffer, data]);
@@ -1271,42 +1285,42 @@ export class TCPServer {
         let dataLength = isLittleEndian ? lengthLE : lengthBE;
         let packetLength = 24 + dataLength;
         
-        console.log(`[${new Date().toISOString()}] Buffer status: ${buffer.length} bytes`);
-        console.log(`  Command (BE): 0x${commandBE.toString(16).padStart(4, '0')}`);
-        console.log(`  Command (LE): 0x${commandLE.toString(16).padStart(4, '0')}`);
-        console.log(`  Length (BE): 0x${lengthBE.toString(16).padStart(4, '0')} = ${lengthBE}`);
-        console.log(`  Length (LE): 0x${lengthLE.toString(16).padStart(4, '0')} = ${lengthLE}`);
-        console.log(`  Detected endianness: ${isLittleEndian ? 'LITTLE-ENDIAN' : 'BIG-ENDIAN'}`);
-        console.log(`  Using Command: 0x${command.toString(16).padStart(4, '0')}`);
-        console.log(`  Using Data Length: ${dataLength} bytes`);
-        console.log(`  Expected packet length: ${packetLength} bytes (24 header + ${dataLength} data)`);
+        this.verboseLog(`[${new Date().toISOString()}] Buffer status: ${buffer.length} bytes`);
+        this.verboseLog(`  Command (BE): 0x${commandBE.toString(16).padStart(4, '0')}`);
+        this.verboseLog(`  Command (LE): 0x${commandLE.toString(16).padStart(4, '0')}`);
+        this.verboseLog(`  Length (BE): 0x${lengthBE.toString(16).padStart(4, '0')} = ${lengthBE}`);
+        this.verboseLog(`  Length (LE): 0x${lengthLE.toString(16).padStart(4, '0')} = ${lengthLE}`);
+        this.verboseLog(`  Detected endianness: ${isLittleEndian ? 'LITTLE-ENDIAN' : 'BIG-ENDIAN'}`);
+        this.verboseLog(`  Using Command: 0x${command.toString(16).padStart(4, '0')}`);
+        this.verboseLog(`  Using Data Length: ${dataLength} bytes`);
+        this.verboseLog(`  Expected packet length: ${packetLength} bytes (24 header + ${dataLength} data)`);
         
         // Validate packet length
         if (packetLength < 24) {
-          console.log(`[${new Date().toISOString()}] ERROR: Invalid packet length: ${packetLength} (too short)`);
-          console.log(`  Buffer (first 24 bytes): ${buffer.slice(0, 24).toString('hex')}`);
+          this.verboseLog(`[${new Date().toISOString()}] ERROR: Invalid packet length: ${packetLength} (too short)`);
+          this.verboseLog(`  Buffer (first 24 bytes): ${buffer.slice(0, 24).toString('hex')}`);
           buffer = Buffer.alloc(0); // Clear buffer on error
           break;
         }
         
         if (packetLength > 65535) {
-          console.log(`[${new Date().toISOString()}] ERROR: Invalid packet length: ${packetLength} (too long)`);
-          console.log(`  Buffer (first 24 bytes): ${buffer.slice(0, 24).toString('hex')}`);
+          this.verboseLog(`[${new Date().toISOString()}] ERROR: Invalid packet length: ${packetLength} (too long)`);
+          this.verboseLog(`  Buffer (first 24 bytes): ${buffer.slice(0, 24).toString('hex')}`);
           buffer = Buffer.alloc(0); // Clear buffer on error
           break;
         }
         
         if (buffer.length < packetLength) {
           // Wait for more data
-          console.log(`  Waiting for more data... (need ${packetLength - buffer.length} more bytes)`);
+          this.verboseLog(`  Waiting for more data... (need ${packetLength - buffer.length} more bytes)`);
           break;
         }
 
         try {
           // Extract packet from buffer
           const packetBuffer = buffer.slice(0, packetLength);
-          console.log(`[${new Date().toISOString()}] Extracting packet: ${packetLength} bytes from buffer`);
-          console.log(`  Packet buffer (hex): ${packetBuffer.toString('hex')}`);
+          this.verboseLog(`[${new Date().toISOString()}] Extracting packet: ${packetLength} bytes from buffer`);
+          this.verboseLog(`  Packet buffer (hex): ${packetBuffer.toString('hex')}`);
           
           // Store endianness for this socket
           this.clientEndianness.set(socket, isLittleEndian);
@@ -1318,16 +1332,16 @@ export class TCPServer {
           const timestamp = new Date().toISOString();
           const clientInfo = `${socket.remoteAddress}:${socket.remotePort}`;
           
-          console.log(`[${timestamp}] ===== INCOMING PACKET from ${clientInfo} =====`);
-          console.log(`  Command: 0x${packet.command.toString(16).padStart(4, '0')} (${this.getCommandName(packet.command)})`);
-          console.log(`  Length: ${packet.length} bytes`);
-          console.log(`  Session Handle: ${packet.sessionHandle}`);
-          console.log(`  Status: 0x${packet.status.toString(16).padStart(8, '0')}`);
-          console.log(`  Data Length: ${packet.data.length} bytes`);
+          this.verboseLog(`[${timestamp}] ===== INCOMING PACKET from ${clientInfo} =====`);
+          this.verboseLog(`  Command: 0x${packet.command.toString(16).padStart(4, '0')} (${this.getCommandName(packet.command)})`);
+          this.verboseLog(`  Length: ${packet.length} bytes`);
+          this.verboseLog(`  Session Handle: ${packet.sessionHandle}`);
+          this.verboseLog(`  Status: 0x${packet.status.toString(16).padStart(8, '0')}`);
+          this.verboseLog(`  Data Length: ${packet.data.length} bytes`);
           if (packet.data.length > 0) {
-            console.log(`  Data (hex): ${packet.data.toString('hex')}`);
+            this.verboseLog(`  Data (hex): ${packet.data.toString('hex')}`);
           }
-          console.log(`========================================`);
+          this.verboseLog(`========================================`);
           
           log(`Received command: 0x${packet.command.toString(16).padStart(4, '0')}`);
 
@@ -1336,7 +1350,7 @@ export class TCPServer {
             await handler(socket, packet, isLittleEndian);
           } else {
             log(`Unknown command: 0x${packet.command.toString(16)}`);
-            console.log(`[${timestamp}] RESPONSE: Unknown Command (0x${packet.command.toString(16).padStart(4, '0')})`);
+            this.verboseLog(`[${timestamp}] RESPONSE: Unknown Command (0x${packet.command.toString(16).padStart(4, '0')})`);
             const response = packet.createResponse(
               EncapsulationPacket.STATUS.INVALID_COMMAND,
               Buffer.alloc(0)
@@ -1345,17 +1359,17 @@ export class TCPServer {
             const responseBuffer = isLittleEndian 
               ? EncapsulationPacket.toBufferLE(response, Buffer.alloc(0))
               : response.toBuffer();
-            console.log(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
+            this.verboseLog(`  Status: 0x${response.status.toString(16).padStart(8, '0')}`);
             socket.write(responseBuffer);
           }
           
           // Remove processed packet from buffer
           buffer = buffer.slice(packetLength);
-          console.log(`[${new Date().toISOString()}] Packet processed, remaining buffer: ${buffer.length} bytes`);
+          this.verboseLog(`[${new Date().toISOString()}] Packet processed, remaining buffer: ${buffer.length} bytes`);
         } catch (error) {
           log(`Error processing packet: ${error.message}`);
-          console.log(`[${new Date().toISOString()}] ERROR processing packet: ${error.message}`);
-          console.log(`  Error stack: ${error.stack}`);
+          this.verboseLog(`[${new Date().toISOString()}] ERROR processing packet: ${error.message}`);
+          this.verboseLog(`  Error stack: ${error.stack}`);
           // On error, clear buffer to prevent infinite loop
           buffer = Buffer.alloc(0);
         }

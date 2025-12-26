@@ -2,6 +2,7 @@
  * Ethernet/IP Server - Main Entry Point
  */
 
+import 'dotenv/config';
 import { TCPServer } from './server/TCPServer.js';
 import { UDPServer } from './server/UDPServer.js';
 import { SessionManager } from './server/SessionManager.js';
@@ -24,6 +25,9 @@ class EthernetIPServer {
     this.productCode = options.productCode || 0x00000000;
     this.productName = options.productName || 'EtherNet/IP Simulator';
     
+    // Logging configuration
+    this.verboseLogging = options.verboseLogging !== undefined ? options.verboseLogging : true;
+    
     this.tcpServer = new TCPServer({
       port: options.tcpPort || 44818,
       host: options.host || '0.0.0.0',
@@ -33,7 +37,8 @@ class EthernetIPServer {
       vendorId: this.vendorId,
       deviceType: this.deviceType,
       productCode: this.productCode,
-      productName: this.productName
+      productName: this.productName,
+      verboseLogging: this.verboseLogging
     });
 
     this.udpServer = new UDPServer({
@@ -224,7 +229,8 @@ if (isMainModule) {
     vendorId: parseInt(process.env.VENDOR_ID || '0', 16),
     deviceType: parseInt(process.env.DEVICE_TYPE || '0', 16),
     productCode: parseInt(process.env.PRODUCT_CODE || '0', 16),
-    productName: process.env.PRODUCT_NAME || 'EtherNet/IP Simulator'
+    productName: process.env.PRODUCT_NAME || 'EtherNet/IP Simulator',
+    verboseLogging: process.env.VERBOSE_LOGGING !== 'false' // Default true, set to 'false' to disable
   });
 
   server.start().catch((error) => {

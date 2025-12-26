@@ -41,20 +41,50 @@ npm run dev
 
 ### Ortam Değişkenleri
 
-- `TCP_PORT`: TCP server portu (varsayılan: 44818)
-- `UDP_PORT`: UDP server portu (varsayılan: 2222)
-- `HOST`: Bind adresi (varsayılan: 0.0.0.0)
-- `DEVICE_SLOT_NUMBER`: Cihaz slot numarası (varsayılan: 0)
-- `VENDOR_ID`: Vendor ID (hex, varsayılan: 0x0000)
-- `DEVICE_TYPE`: Device type (hex, varsayılan: 0x0000)
-- `PRODUCT_CODE`: Product code (hex, varsayılan: 0x00000000)
-- `PRODUCT_NAME`: Product name (varsayılan: "EtherNet/IP Simulator")
-- `DEBUG`: Debug log seviyesi (örn: `ethernetip:*`)
+Proje kök dizininde `.env` dosyası oluşturarak ayarları yapılandırabilirsiniz:
 
-Örnek:
+```env
+# .env dosyası örneği
+
+# TCP server portu (varsayılan: 44818)
+TCP_PORT=44818
+
+# UDP server portu (varsayılan: 2222)
+UDP_PORT=2222
+
+# Bind adresi (varsayılan: 0.0.0.0)
+HOST=0.0.0.0
+
+# Cihaz slot numarası (varsayılan: 0)
+DEVICE_SLOT_NUMBER=0
+
+# Vendor ID - hex formatında (varsayılan: 0x0000)
+VENDOR_ID=0x0000
+
+# Device type - hex formatında (varsayılan: 0x0000)
+DEVICE_TYPE=0x0000
+
+# Product code - hex formatında (varsayılan: 0x00000000)
+PRODUCT_CODE=0x00000000
+
+# Product name
+PRODUCT_NAME=EtherNet/IP Simulator
+
+# Detaylı loglama (true/false)
+# true = tüm request/response logları
+# false = sadece tag okuma logları
+VERBOSE_LOGGING=true
+```
+
+Örnek komut satırı kullanımı:
 
 ```bash
-TCP_PORT=44818 UDP_PORT=2222 DEBUG=ethernetip:* npm start
+# Detaylı loglama ile
+npm start
+
+# Minimal loglama (sadece tag okumaları) - .env dosyasında VERBOSE_LOGGING=false yapın
+# veya komut satırından:
+VERBOSE_LOGGING=false npm start
 ```
 
 **Device Slot Number Hakkında:**
@@ -73,11 +103,12 @@ const server = new EthernetIPServer({
   tcpPort: 44818,
   udpPort: 2222,
   host: '0.0.0.0',
-  deviceSlotNumber: 0,        // Device slot number (default: 0)
+  deviceSlotNumber: 0,         // Device slot number (default: 0)
   vendorId: 0x0000,            // Vendor ID (default: 0x0000)
   deviceType: 0x0000,          // Device type (default: 0x0000)
   productCode: 0x00000000,     // Product code (default: 0x00000000)
-  productName: 'EtherNet/IP Simulator' // Product name
+  productName: 'EtherNet/IP Simulator', // Product name
+  verboseLogging: true         // Detaylı loglama (default: true)
 });
 
 await server.start();

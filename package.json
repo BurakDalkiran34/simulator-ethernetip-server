@@ -20,10 +20,10 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "debug": "^4.3.4"
+    "debug": "^4.3.4",
+    "dotenv": "^16.6.1"
   },
   "devDependencies": {
     "@types/node": "^20.10.0"
   }
 }
-
